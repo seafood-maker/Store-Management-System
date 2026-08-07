@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore"; // 務必補上這行
 
 const firebaseConfig = {
   apiKey: "AIzaSyD0sOH2DSxjkquBXBE0NhVs7wQqPedTeIc",
@@ -11,8 +11,7 @@ const firebaseConfig = {
   measurementId: "G-BDBRJ5BELV"
 };
 
-// 初始化 Firebase
 const app = initializeApp(firebaseConfig);
 
-// 關鍵：必須使用 export 導出 db，其它檔案才能用到它
+// 核心修正：一定要導出 db，其它檔案（如 AppContext）才抓得到它
 export const db = getFirestore(app);
