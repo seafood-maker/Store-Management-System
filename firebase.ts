@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore"; // 必須引入這行才能用資料庫
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD0sOH2DSxjkquBXBE0NhVs7wQqPedTeIc",
@@ -14,5 +14,5 @@ const firebaseConfig = {
 // 初始化 Firebase
 const app = initializeApp(firebaseConfig);
 
-// 初始化 Firestore 並匯出給全站使用 (這是關鍵)
+// 關鍵：必須使用 export 導出 db，其它檔案才能用到它
 export const db = getFirestore(app);
