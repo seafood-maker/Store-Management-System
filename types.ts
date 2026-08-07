@@ -5,12 +5,16 @@ export type Store = {
 
 export type Role = 'boss' | 'manager' | 'staff';
 
+// 新增：雇用類型定義
+export type EmploymentType = 'full-time' | 'part-time';
+
 export type Employee = {
   id: string;
   storeId: string;
   name: string;
   role: Role;
   hourlyRate: number;
+  employmentType: EmploymentType; // 新增這行
   account?: string;
   password?: string;
 };
