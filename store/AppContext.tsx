@@ -39,7 +39,8 @@ interface AppContextType {
   
   // Actions
   addEmployee: (emp: Omit<Employee, 'id'>) => Promise<void>;
-  updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>; // 新增這行
+  updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>;
+  deleteEmployee: (id: string) => Promise<void>; // 新增這行
   addShift: (shift: Omit<Shift, 'id'>) => Promise<void>;
   addVendor: (vendor: Omit<Vendor, 'id'>) => Promise<void>;
   addMaterial: (material: Omit<Material, 'id'>) => Promise<void>;
@@ -104,10 +105,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await addDoc(collection(db, 'employees'), emp);
   };
 
-  // 新增：更新員工資料實作
   const updateEmployee = async (id: string, data: Partial<Employee>) => {
     const docRef = doc(db, 'employees', id);
     await updateDoc(docRef, data);
+  };
+
+  // 新增：永久刪除員工實作
+  const deleteEmployee = async (id: string) => {
+    if (!window.confirm("確定要永久刪除此員工嗎？此操作無法復原。")) return;
+    const docRef = doc(db, 'employees', id);
+    await deleteDoc(docRef);
   };
 
   const addShift = async (shift: Omit<Shift, 'id'>) => {
@@ -234,7 +241,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         transactions,
         revenues,
         addEmployee,
-        updateEmployee, // 記得傳出這個 function
+        updateEmployee,
+        deleteEmployee, // 記得傳出這個 function
         addShift,
         addVendor,
         addMaterial,
