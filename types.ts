@@ -5,8 +5,11 @@ export type Store = {
 
 export type Role = 'boss' | 'manager' | 'staff';
 
-// 新增：雇用類型定義
+// 雇用類型定義
 export type EmploymentType = 'full-time' | 'part-time';
+
+// 新增：員工狀態定義（在職/凍結）
+export type EmployeeStatus = 'active' | 'frozen';
 
 export type Employee = {
   id: string;
@@ -14,7 +17,8 @@ export type Employee = {
   name: string;
   role: Role;
   hourlyRate: number;
-  employmentType: EmploymentType; // 新增這行
+  employmentType: EmploymentType;
+  status: EmployeeStatus; // 新增這行：記錄員工目前是否啟用
   account?: string;
   password?: string;
 };
