@@ -9,8 +9,7 @@ import {
   deleteDoc, 
   query, 
   where, 
-  getDocs,
-  setDoc 
+  getDocs 
 } from 'firebase/firestore';
 import { 
   Store, Employee, Vendor, Material, DailyRevenue, 
@@ -40,6 +39,7 @@ interface AppContextType {
   
   // Actions
   addEmployee: (emp: Omit<Employee, 'id'>) => Promise<void>;
+  updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>; // 新增這行
   addShift: (shift: Omit<Shift, 'id'>) => Promise<void>;
   addVendor: (vendor: Omit<Vendor, 'id'>) => Promise<void>;
   addMaterial: (material: Omit<Material, 'id'>) => Promise<void>;
@@ -104,6 +104,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await addDoc(collection(db, 'employees'), emp);
   };
 
+  // 新增：更新員工資料實作
+  const updateEmployee = async (id: string, data: Partial<Employee>) => {
+    const docRef = doc(db, 'employees', id);
+    await updateDoc(docRef, data);
+  };
+
   const addShift = async (shift: Omit<Shift, 'id'>) => {
     await addDoc(collection(db, 'shifts'), shift);
   };
@@ -121,7 +127,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addRevenue = async (rev: Omit<DailyRevenue, 'id'>) => {
-    // 檢查是否已有該店該日期的資料，若有則更新，若無則新增 (Upsert)
     const q = query(collection(db, 'revenues'), 
       where('storeId', '==', rev.storeId), 
       where('date', '==', rev.date)
@@ -137,7 +142,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const saveDailyInbound = async (date: string, storeId: string, records: any[]) => {
-    // 為了保持資料乾淨，先查詢當天已有的 inbound 紀錄並刪除，再新增
     const q = query(collection(db, 'transactions'), 
       where('date', '==', date), 
       where('storeId', '==', storeId), 
@@ -148,7 +152,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await deleteDoc(doc(db, 'transactions', d.id));
     }
 
-    // 批量新增新紀錄
     for (const record of records) {
       await addDoc(collection(db, 'transactions'), {
         ...record,
@@ -187,7 +190,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await updateDoc(docRef, { acceptableErrorRate: errorRate });
   };
 
-  // --- 3. Auth 邏輯 (基於 Firebase 抓回來的員工資料) ---
+  // --- 3. Auth 邏輯 ---
 
   const login = (account: string, pass: string) => {
     const user = employees.find(e => e.account === account && e.password === pass);
@@ -231,6 +234,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         transactions,
         revenues,
         addEmployee,
+        updateEmployee, // 記得傳出這個 function
         addShift,
         addVendor,
         addMaterial,
