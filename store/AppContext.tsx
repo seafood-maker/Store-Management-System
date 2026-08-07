@@ -1,6 +1,21 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Store, Employee, Vendor, Material, DailyRevenue, Shift, InventoryTransaction, ViewState } from '../types';
-import { mockStores, mockEmployees, mockVendors, mockMaterials, mockRevenue } from './mockData';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { db } from '../firebase';
+import { 
+  collection, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  doc, 
+  deleteDoc, 
+  query, 
+  where, 
+  getDocs,
+  setDoc 
+} from 'firebase/firestore';
+import { 
+  Store, Employee, Vendor, Material, DailyRevenue, 
+  Shift, InventoryTransaction, ViewState 
+} from '../types';
 
 interface AppContextType {
   stores: Store[];
@@ -24,100 +39,155 @@ interface AppContextType {
   revenues: DailyRevenue[];
   
   // Actions
-  addEmployee: (emp: Omit<Employee, 'id'>) => void;
-  addShift: (shift: Omit<Shift, 'id'>) => void;
-  addVendor: (vendor: Omit<Vendor, 'id'>) => void;
-  addMaterial: (material: Omit<Material, 'id'>) => void;
-  addTransaction: (tx: Omit<InventoryTransaction, 'id'>) => void;
-  addRevenue: (rev: Omit<DailyRevenue, 'id'>) => void;
-  saveDailyInbound: (date: string, storeId: string, records: Omit<InventoryTransaction, 'id' | 'storeId' | 'date' | 'type'>[]) => void;
-  saveInventoryCount: (date: string, storeId: string, records: Omit<InventoryTransaction, 'id' | 'storeId' | 'date' | 'type'>[]) => void;
-  updateMaterialErrorRate: (materialId: string, errorRate: number) => void;
+  addEmployee: (emp: Omit<Employee, 'id'>) => Promise<void>;
+  addShift: (shift: Omit<Shift, 'id'>) => Promise<void>;
+  addVendor: (vendor: Omit<Vendor, 'id'>) => Promise<void>;
+  addMaterial: (material: Omit<Material, 'id'>) => Promise<void>;
+  addTransaction: (tx: Omit<InventoryTransaction, 'id'>) => Promise<void>;
+  addRevenue: (rev: Omit<DailyRevenue, 'id'>) => Promise<void>;
+  saveDailyInbound: (date: string, storeId: string, records: Omit<InventoryTransaction, 'id' | 'storeId' | 'date' | 'type'>[]) => Promise<void>;
+  saveInventoryCount: (date: string, storeId: string, records: Omit<InventoryTransaction, 'id' | 'storeId' | 'date' | 'type'>[]) => Promise<void>;
+  updateMaterialErrorRate: (materialId: string, errorRate: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [stores] = useState<Store[]>(mockStores);
+  // UI 狀態
   const [selectedStoreId, setSelectedStoreId] = useState<string | 'all'>('all');
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
-
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
+
+  // Firebase 資料狀態
+  const [stores, setStores] = useState<Store[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>(mockVendors);
-  const [materials, setMaterials] = useState<Material[]>(mockMaterials);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
-  const [revenues, setRevenues] = useState<DailyRevenue[]>(mockRevenue);
+  const [revenues, setRevenues] = useState<DailyRevenue[]>([]);
 
-  const addEmployee = (emp: Omit<Employee, 'id'>) => {
-    setEmployees([...employees, { ...emp, id: `emp-${Date.now()}` }]);
+  // --- 1. 建立 Firebase 即時監聽 ---
+  useEffect(() => {
+    const unsubStores = onSnapshot(collection(db, 'stores'), (snap) => {
+      setStores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store)));
+    });
+    const unsubEmployees = onSnapshot(collection(db, 'employees'), (snap) => {
+      setEmployees(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee)));
+    });
+    const unsubShifts = onSnapshot(collection(db, 'shifts'), (snap) => {
+      setShifts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift)));
+    });
+    const unsubVendors = onSnapshot(collection(db, 'vendors'), (snap) => {
+      setVendors(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vendor)));
+    });
+    const unsubMaterials = onSnapshot(collection(db, 'materials'), (snap) => {
+      setMaterials(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Material)));
+    });
+    const unsubTransactions = onSnapshot(collection(db, 'transactions'), (snap) => {
+      setTransactions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryTransaction)));
+    });
+    const unsubRevenues = onSnapshot(collection(db, 'revenues'), (snap) => {
+      setRevenues(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DailyRevenue)));
+    });
+
+    return () => {
+      unsubStores(); unsubEmployees(); unsubShifts();
+      unsubVendors(); unsubMaterials(); unsubTransactions(); unsubRevenues();
+    };
+  }, []);
+
+  // --- 2. 寫入 Actions (Firebase 版) ---
+
+  const addEmployee = async (emp: Omit<Employee, 'id'>) => {
+    await addDoc(collection(db, 'employees'), emp);
   };
 
-  const addShift = (shift: Omit<Shift, 'id'>) => {
-    setShifts([...shifts, { ...shift, id: `shift-${Date.now()}` }]);
+  const addShift = async (shift: Omit<Shift, 'id'>) => {
+    await addDoc(collection(db, 'shifts'), shift);
   };
 
-  const addVendor = (vendor: Omit<Vendor, 'id'>) => {
-    setVendors([...vendors, { ...vendor, id: `ven-${Date.now()}` }]);
+  const addVendor = async (vendor: Omit<Vendor, 'id'>) => {
+    await addDoc(collection(db, 'vendors'), vendor);
   };
 
-  const addMaterial = (material: Omit<Material, 'id'>) => {
-    setMaterials([...materials, { ...material, id: `mat-${Date.now()}` }]);
+  const addMaterial = async (material: Omit<Material, 'id'>) => {
+    await addDoc(collection(db, 'materials'), material);
   };
 
-  const addTransaction = (tx: Omit<InventoryTransaction, 'id'>) => {
-    setTransactions([...transactions, { ...tx, id: `tx-${Date.now()}` }]);
+  const addTransaction = async (tx: Omit<InventoryTransaction, 'id'>) => {
+    await addDoc(collection(db, 'transactions'), tx);
   };
 
-  const addRevenue = (rev: Omit<DailyRevenue, 'id'>) => {
-    // Check if revenue for this date and store already exists, if so update it
-    const existingIndex = revenues.findIndex(r => r.storeId === rev.storeId && r.date === rev.date);
-    if (existingIndex >= 0) {
-      const newRevenues = [...revenues];
-      newRevenues[existingIndex] = { ...newRevenues[existingIndex], amount: rev.amount };
-      setRevenues(newRevenues);
+  const addRevenue = async (rev: Omit<DailyRevenue, 'id'>) => {
+    // 檢查是否已有該店該日期的資料，若有則更新，若無則新增 (Upsert)
+    const q = query(collection(db, 'revenues'), 
+      where('storeId', '==', rev.storeId), 
+      where('date', '==', rev.date)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const docRef = doc(db, 'revenues', querySnapshot.docs[0].id);
+      await updateDoc(docRef, { amount: rev.amount });
     } else {
-      setRevenues([...revenues, { ...rev, id: `rev-${Date.now()}` }]);
+      await addDoc(collection(db, 'revenues'), rev);
     }
   };
 
-  const saveDailyInbound = (date: string, storeId: string, records: Omit<InventoryTransaction, 'id' | 'storeId' | 'date' | 'type'>[]) => {
-    // Remove existing inbound transactions for this date and store
-    const filtered = transactions.filter(t => !(t.date === date && t.storeId === storeId && t.type === 'inbound'));
-    
-    // Add new ones
-    const newTx = records.map((r, i) => ({
-      ...r,
-      id: `tx-inbound-${Date.now()}-${i}`,
-      storeId,
-      date,
-      type: 'inbound' as const
-    }));
-    
-    setTransactions([...filtered, ...newTx]);
+  const saveDailyInbound = async (date: string, storeId: string, records: any[]) => {
+    // 為了保持資料乾淨，先查詢當天已有的 inbound 紀錄並刪除，再新增
+    const q = query(collection(db, 'transactions'), 
+      where('date', '==', date), 
+      where('storeId', '==', storeId), 
+      where('type', '==', 'inbound')
+    );
+    const existing = await getDocs(q);
+    for (const d of existing.docs) {
+      await deleteDoc(doc(db, 'transactions', d.id));
+    }
+
+    // 批量新增新紀錄
+    for (const record of records) {
+      await addDoc(collection(db, 'transactions'), {
+        ...record,
+        storeId,
+        date,
+        type: 'inbound',
+        timestamp: new Date()
+      });
+    }
   };
 
-  const saveInventoryCount = (date: string, storeId: string, records: Omit<InventoryTransaction, 'id' | 'storeId' | 'date' | 'type'>[]) => {
-    // Remove existing count transactions for this date and store
-    const filtered = transactions.filter(t => !(t.date === date && t.storeId === storeId && t.type === 'count'));
-    
-    // Add new ones
-    const newTx = records.map((r, i) => ({
-      ...r,
-      id: `tx-count-${Date.now()}-${i}`,
-      storeId,
-      date,
-      type: 'count' as const
-    }));
-    
-    setTransactions([...filtered, ...newTx]);
+  const saveInventoryCount = async (date: string, storeId: string, records: any[]) => {
+    const q = query(collection(db, 'transactions'), 
+      where('date', '==', date), 
+      where('storeId', '==', storeId), 
+      where('type', '==', 'count')
+    );
+    const existing = await getDocs(q);
+    for (const d of existing.docs) {
+      await deleteDoc(doc(db, 'transactions', d.id));
+    }
+
+    for (const record of records) {
+      await addDoc(collection(db, 'transactions'), {
+        ...record,
+        storeId,
+        date,
+        type: 'count',
+        timestamp: new Date()
+      });
+    }
   };
 
-  const updateMaterialErrorRate = (materialId: string, errorRate: number) => {
-    setMaterials(materials.map(m => m.id === materialId ? { ...m, acceptableErrorRate: errorRate } : m));
+  const updateMaterialErrorRate = async (materialId: string, errorRate: number) => {
+    const docRef = doc(db, 'materials', materialId);
+    await updateDoc(docRef, { acceptableErrorRate: errorRate });
   };
+
+  // --- 3. Auth 邏輯 (基於 Firebase 抓回來的員工資料) ---
 
   const login = (account: string, pass: string) => {
     const user = employees.find(e => e.account === account && e.password === pass);
@@ -128,13 +198,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (user.role === 'boss') {
         setSelectedStoreId('all');
         setCurrentView('dashboard');
-      } else if (user.role === 'manager') {
-        setSelectedStoreId(user.storeId);
-        setCurrentView('hr');
       } else {
-        // staff
         setSelectedStoreId(user.storeId);
-        setCurrentView('inventory');
+        setCurrentView(user.role === 'manager' ? 'hr' : 'inventory');
       }
       return true;
     }
