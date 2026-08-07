@@ -1,16 +1,21 @@
+// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// 請將下方的資訊替換成你在 Firebase Console 獲得的真實代碼
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "你的API_KEY",
-  authDomain: "你的專案.firebaseapp.com",
-  projectId: "你的專案ID",
-  storageBucket: "你的專案.appspot.com",
-  messagingSenderId: "你的發送者ID",
-  appId: "你的APP_ID"
+  apiKey: "AIzaSyD0sOH2DSxjkquBXBE0NhVs7wQqPedTeIc",
+  authDomain: "store-management-system-4ac33.firebaseapp.com",
+  projectId: "store-management-system-4ac33",
+  storageBucket: "store-management-system-4ac33.firebasestorage.app",
+  messagingSenderId: "534207416873",
+  appId: "1:534207416873:web:02e598e44de5433f51ea38",
+  measurementId: "G-BDBRJ5BELV"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-// 初始化資料庫
-export const db = getFirestore(app);
+const analytics = getAnalytics(app);
