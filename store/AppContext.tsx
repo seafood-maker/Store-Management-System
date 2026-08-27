@@ -9,11 +9,12 @@ import {
   deleteDoc, 
   query, 
   where, 
-  getDocs 
+  getDocs,
+  setDoc // 新增：用於指定 ID 寫入
 } from 'firebase/firestore';
 import { 
   Store, Employee, Vendor, Material, DailyRevenue, 
-  Shift, InventoryTransaction, ViewState 
+  Shift, InventoryTransaction, ViewState, DailyTarget 
 } from '../types';
 
 interface AppContextType {
@@ -36,16 +37,19 @@ interface AppContextType {
   materials: Material[];
   transactions: InventoryTransaction[];
   revenues: DailyRevenue[];
+  targets: DailyTarget[]; // 新增
   
   // Actions
   addEmployee: (emp: Omit<Employee, 'id'>) => Promise<void>;
   updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => Promise<void>;
   
-  // Shift Actions (更新與刪除在這裡)
+  // Shift & Schedule Actions
   addShift: (shift: Omit<Shift, 'id'>) => Promise<void>;
-  updateShift: (id: string, data: Partial<Shift>) => Promise<void>; // 新增
-  deleteShift: (id: string) => Promise<void>; // 新增
+  updateShift: (id: string, data: Partial<Shift>) => Promise<void>;
+  deleteShift: (id: string) => Promise<void>;
+  updateDailySchedule: (data: Shift) => Promise<void>; // 新增：支援自定義 ID 的排班更新
+  updateDailyTarget: (data: DailyTarget) => Promise<void>; // 新增：營業目標更新
   
   addVendor: (vendor: Omit<Vendor, 'id'>) => Promise<void>;
   addMaterial: (material: Omit<Material, 'id'>) => Promise<void>;
@@ -73,6 +77,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
   const [revenues, setRevenues] = useState<DailyRevenue[]>([]);
+  const [targets, setTargets] = useState<DailyTarget[]>([]); // 新增
 
   // --- 1. 建立 Firebase 即時監聽 ---
   useEffect(() => {
@@ -97,10 +102,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const unsubRevenues = onSnapshot(collection(db, 'revenues'), (snap) => {
       setRevenues(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DailyRevenue)));
     });
+    // 新增：目標資料監聽
+    const unsubTargets = onSnapshot(collection(db, 'dailyTargets'), (snap) => {
+      setTargets(snap.docs.map(doc => ({ ...doc.data() } as DailyTarget)));
+    });
 
     return () => {
       unsubStores(); unsubEmployees(); unsubShifts();
-      unsubVendors(); unsubMaterials(); unsubTransactions(); unsubRevenues();
+      unsubVendors(); unsubMaterials(); unsubTransactions(); 
+      unsubRevenues(); unsubTargets();
     };
   }, []);
 
@@ -132,9 +142,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteShift = async (id: string) => {
-    // 考慮到班表可能不小心點錯，可以視需求決定是否要加 confirm
     const docRef = doc(db, 'shifts', id);
     await deleteDoc(docRef);
+  };
+
+  // 新增：支援具備複合 ID（員工+日期）的排班更新邏輯
+  const updateDailySchedule = async (data: Shift) => {
+    // 使用 員工ID_日期 作為文件 ID，確保同一人同一天只有一筆預排班表
+    const docId = `${data.employeeId}_${data.date}`;
+    await setDoc(doc(db, 'shifts', docId), data);
+  };
+
+  // 新增：更新每日營業與工時目標
+  const updateDailyTarget = async (data: DailyTarget) => {
+    // 使用日期作為 ID，方便快速查詢特定日期的目標
+    await setDoc(doc(db, 'dailyTargets', data.date), data);
   };
 
   const addVendor = async (vendor: Omit<Vendor, 'id'>) => {
@@ -256,12 +278,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         materials,
         transactions,
         revenues,
+        targets, // 記得傳出
         addEmployee,
         updateEmployee,
         deleteEmployee,
         addShift,
-        updateShift, // 記得傳出
-        deleteShift, // 記得傳出
+        updateShift,
+        deleteShift,
+        updateDailySchedule, // 記得傳出
+        updateDailyTarget,   // 記得傳出
         addVendor,
         addMaterial,
         addTransaction,
