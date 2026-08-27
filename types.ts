@@ -1,5 +1,5 @@
 /**
- * BistroFlow 系統類型定義檔案 - 完整整合版
+ * BistroFlow 系統類型定義檔案 - 完整整合版 (最新修正)
  */
 
 // --- 基礎定義 ---
@@ -13,7 +13,7 @@ export type EmploymentType = 'full-time' | 'part-time';
 export type EmployeeStatus = 'active' | 'frozen';
 
 // --- 人事管理 (HR) ---
-export type Employee = {
+export interface Employee {
   id: string;
   storeId: string;
   name: string;
@@ -23,17 +23,17 @@ export type Employee = {
   status: EmployeeStatus;
   account?: string;
   password?: string;
-};
+}
 
-// --- 排班系統專用類型 (New) ---
+// --- 排班系統專用類型 ---
 // 工作站類型：MT(外場主位), OT(外場次位), CT(櫃台), 休(休息), ''(未設定)
 export type StationType = 'MT' | 'OT' | 'CT' | '休' | '';
 // 備餐區類型
 export type PrepStationType = '切菜區' | '烤箱區' | '';
 
-// --- 班表與出勤 (Merged & Updated) ---
+// --- 班表與出勤 (整合自 DailySchedule) ---
 export type Shift = {
-  id: string;
+  id: string;         // Firebase Doc ID (建議使用 employeeId_date 或是 隨機ID)
   employeeId: string;
   storeId: string;
   date: string;       // YYYY-MM-DD
@@ -49,28 +49,28 @@ export type Shift = {
   prepStation: PrepStationType;
   
   // 工時計算
-  breakHours: number;           // 休息時數
-  workHours: number;            // 實際工時 (自動計算結果：總時數 - 休息時數)
+  breakHours: string;           // 修正：使用字串方便 UI 欄位輸入 (如 "0.5")
+  workHours: number;            // 實際工時 (數字，用於薪資計算)
   
   // 備註與說明
-  note?: string;
+  note: string;                 // 修正：依要求改為必填字串（若無內容則存空字串）
 };
 
 // --- 營收與目標 (Sales & Targets) ---
-export type DailyRevenue = {
+export interface DailyRevenue {
   id: string;
   storeId: string;
-  date: string; // YYYY-MM-DD
+  date: string;       // YYYY-MM-DD
   amount: number;
-};
+}
 
-// 每日營運目標 (New)
+// 每日營運目標
 export interface DailyTarget {
-  id?: string;      // 在 Firebase 中建議加上 id
-  storeId: string;  // 新增：關聯分店
-  date: string;     // YYYY-MM-DD
+  id?: string;
+  storeId: string;    // 關聯分店
+  date: string;       // YYYY-MM-DD (作為 key 使用)
   targetHours: number; // 目標工時
-  revenue: number;     // 目標營業額 (或實際對應之營業額預測)
+  revenue: number;     // 目標營業額
 }
 
 // --- 物料與供應商 (Inventory) ---
@@ -92,7 +92,7 @@ export type InventoryTransaction = {
   id: string;
   storeId: string;
   materialId: string;
-  date: string; // YYYY-MM-DD
+  date: string;       // YYYY-MM-DD
   type: 'inbound' | 'usage' | 'count'; 
   quantity: number;
   price?: number;         
@@ -111,5 +111,5 @@ export interface AppData {
   materials: Material[];
   transactions: InventoryTransaction[];
   revenues: DailyRevenue[];
-  targets: DailyTarget[]; // 新增：排班目標清單
+  targets: DailyTarget[];
 }
