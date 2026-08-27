@@ -40,8 +40,13 @@ interface AppContextType {
   // Actions
   addEmployee: (emp: Omit<Employee, 'id'>) => Promise<void>;
   updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>;
-  deleteEmployee: (id: string) => Promise<void>; // 新增這行
+  deleteEmployee: (id: string) => Promise<void>;
+  
+  // Shift Actions (更新與刪除在這裡)
   addShift: (shift: Omit<Shift, 'id'>) => Promise<void>;
+  updateShift: (id: string, data: Partial<Shift>) => Promise<void>; // 新增
+  deleteShift: (id: string) => Promise<void>; // 新增
+  
   addVendor: (vendor: Omit<Vendor, 'id'>) => Promise<void>;
   addMaterial: (material: Omit<Material, 'id'>) => Promise<void>;
   addTransaction: (tx: Omit<InventoryTransaction, 'id'>) => Promise<void>;
@@ -110,15 +115,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await updateDoc(docRef, data);
   };
 
-  // 新增：永久刪除員工實作
   const deleteEmployee = async (id: string) => {
     if (!window.confirm("確定要永久刪除此員工嗎？此操作無法復原。")) return;
     const docRef = doc(db, 'employees', id);
     await deleteDoc(docRef);
   };
 
+  // --- Shift 功能區塊 ---
   const addShift = async (shift: Omit<Shift, 'id'>) => {
     await addDoc(collection(db, 'shifts'), shift);
+  };
+
+  const updateShift = async (id: string, data: Partial<Shift>) => {
+    const docRef = doc(db, 'shifts', id);
+    await updateDoc(docRef, data);
+  };
+
+  const deleteShift = async (id: string) => {
+    // 考慮到班表可能不小心點錯，可以視需求決定是否要加 confirm
+    const docRef = doc(db, 'shifts', id);
+    await deleteDoc(docRef);
   };
 
   const addVendor = async (vendor: Omit<Vendor, 'id'>) => {
@@ -242,8 +258,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         revenues,
         addEmployee,
         updateEmployee,
-        deleteEmployee, // 記得傳出這個 function
+        deleteEmployee,
         addShift,
+        updateShift, // 記得傳出
+        deleteShift, // 記得傳出
         addVendor,
         addMaterial,
         addTransaction,
